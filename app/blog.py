@@ -75,6 +75,7 @@ async def create_post(
 
 @blog_router.get("/blogs")
 async def list_posts(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=50), includeDrafts: bool = Query(False)):
+    print("Listing posts")
     try:
         # Use paginator for listing objects in chunks
         paginator = s3.get_paginator('list_objects_v2')
@@ -125,6 +126,8 @@ async def list_posts(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1
 
         # Calculate the actual number of posts after filtering (if applicable)
         total_posts_after_filter = len(posts)
+        
+        print("Posts retrieved successfully")
 
         return {
             "message": "Posts retrieved successfully",
