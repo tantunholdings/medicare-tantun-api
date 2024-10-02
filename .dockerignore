@@ -1,0 +1,10 @@
+# Exclude the virtual environment directory
+env/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.log
+*.sqlite3
