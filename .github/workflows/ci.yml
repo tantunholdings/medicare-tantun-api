@@ -1,0 +1,38 @@
+# .github/workflows/ci.yml
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and push backend image
+        env:
+          ECR_REPOSITORY: your_backend_ecr_repo
+          IMAGE_TAG: latest
+        run: |
+          docker build -t $ECR_REPOSITORY:latest ./backend
+          docker push $ECR_REPOSITORY:latest
+
+    #   - name: Deploy to ECS
+    #     uses: aws-actions/ecs-deploy-task-definition@v1
+    #     with:
+    #       task-definition: your_task_definition
+    #       service: your_service_name
+    #       cluster: your_cluster_name
+    #       region: your_region
+    #       wait-for-service-stability: true
