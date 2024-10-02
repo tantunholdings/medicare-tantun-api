@@ -5,6 +5,7 @@ import jwt
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from datetime import datetime, timezone
+from typing import Optional
 
 # Define your FastAPI router
 auth_router = APIRouter()
