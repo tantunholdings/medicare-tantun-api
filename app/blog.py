@@ -1,12 +1,13 @@
 import boto3
 import json
 
-from fastapi import APIRouter, Form, File, UploadFile, HTTPException, Query
+from fastapi import APIRouter, Form, File, UploadFile, HTTPException, Query, Depends
 from typing import Optional
 from io import BytesIO
 from math import ceil
 
 from concurrent.futures import ThreadPoolExecutor
+from app.auth import validate_token
 
 
 S3_BUCKET_NAME = "medicare-blogs"
@@ -18,7 +19,7 @@ s3 = boto3.client(
 
 blog_router = APIRouter()
 
-@blog_router.post("/add-blog")
+@blog_router.post("/add-blog", dependencies=[Depends(validate_token)])
 async def create_post(
     id: str = Form(...),
     title: str = Form(...),
@@ -161,7 +162,7 @@ async def get_blog(blog_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to retrieve Blog: {str(e)}")
 
 # Endpoint to delete a Blog by ID
-@blog_router.delete("/blog/{blog_id}")
+@blog_router.delete("/blog/{blog_id}", dependencies=[Depends(validate_token)])
 async def delete_blog(blog_id: str):
     try:
         # Construct the S3 key using the Blog ID

@@ -1,10 +1,10 @@
 import boto3
 import json
 from concurrent.futures import ThreadPoolExecutor
-from fastapi import APIRouter, Form, HTTPException, Query
+from fastapi import APIRouter, Form, HTTPException, Query, Depends
 from math import ceil
 from datetime import datetime
-
+from app.auth import validate_token
 
 # AWS S3 Configuration
 S3_BUCKET_NAME = "medicare-blogs"
@@ -17,7 +17,7 @@ s3 = boto3.client(
 faq_router = APIRouter()
 
 # Endpoint to create an FAQ
-@faq_router.post("/add-faq")
+@faq_router.post("/add-faq", dependencies=[Depends(validate_token)])
 async def create_faq(
     id: str = Form(...),
     title: str = Form(...),
@@ -138,7 +138,7 @@ async def get_faq(faq_id: str):
 
 
 # Endpoint to delete an FAQ by ID
-@faq_router.delete("/faq/{faq_id}")
+@faq_router.delete("/faq/{faq_id}", dependencies=[Depends(validate_token)])
 async def delete_faq(faq_id: str):
     try:
         # Construct the S3 key using the FAQ ID

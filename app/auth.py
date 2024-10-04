@@ -1,105 +1,92 @@
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
-import jwt
-from passlib.context import CryptContext
-from datetime import datetime, timedelta
-from datetime import datetime, timezone
+import boto3
+from botocore.exceptions import ClientError
 from typing import Optional
 
 # Define your FastAPI router
 auth_router = APIRouter()
 
-# Secret key and algorithm
-SECRET_KEY = "your_secret_key_here"  # Use a strong key from environment variables
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+# AWS Cognito configurations
+AWS_REGION = "us-east-1"
+USER_POOL_ID = "us-east-1_BLvT00Vuc"
+CLIENT_ID = "4fbts6s8gikqt541msvqo13n2d"
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-# In-memory database for demo purposes
-users_db = {
-    "admin": {
-        "username": "admin",
-        "hashed_password": pwd_context.hash("password"),
-    }
-}
+# Initialize the Cognito client
+cognito_client = boto3.client('cognito-idp', region_name=AWS_REGION)
 
 # OAuth2 scheme for token-based authentication
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-
 # Pydantic models for data validation
 class Token(BaseModel):
-    access_token: str
-    token_type: str
+    access_token: Optional[str]  # Change to Optional
+    token_type: Optional[str]     # Change to Optional
+    challenge_name: Optional[str] = None  # Include challenge name
+    session: Optional[str] = None  # Include session for password reset
 
-class TokenData(BaseModel):
-    username: str | None = None
-
-class User(BaseModel):
-    username: str
-
-
-# Helper functions for password hashing and token generation
-def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_user(db, username: str):
-    user = db.get(username)
-    return user
-
-def authenticate_user(fake_db, username: str, password: str):
-    user = get_user(fake_db, username)
-    if not user or not verify_password(password, user["hashed_password"]):
-        return False
-    return user
-
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-
-# Login route to issue JWT
 @auth_router.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(users_db, form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=400, detail="Incorrect username or password"
+async def login_for_access_token(username: str = Query(...), password: str = Query(...)):
+    try:
+        print(f"Logging in user: {username}")
+        response = cognito_client.initiate_auth(
+            AuthFlow='USER_PASSWORD_AUTH',
+            ClientId=CLIENT_ID,
+            AuthParameters={
+                'USERNAME': username,
+                'PASSWORD': password,
+            }
         )
+        print(response)
+        if 'ChallengeName' in response and response['ChallengeName'] == 'NEW_PASSWORD_REQUIRED':
+            return {
+                "access_token": None,
+                "token_type": None,
+                "challenge_name": "NEW_PASSWORD_REQUIRED",
+                "session": response['Session']
+            }
+        
+        access_token = response['AuthenticationResult']['AccessToken']
+        return {"access_token": access_token, "token_type": "Bearer", "challenge_name": None, "session": None}
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": form_data.username}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
+    except ClientError as e:
+        print(e)
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+
+# Endpoint to handle new password
+@auth_router.post("/new-password")
+async def set_new_password(
+    username: str = Query(...),
+    new_password: str = Query(...),
+    session: str = Query(...)
+):
+    try:
+        response = cognito_client.respond_to_auth_challenge(
+            ClientId=CLIENT_ID,
+            ChallengeName='NEW_PASSWORD_REQUIRED',
+            Session=session,
+            ChallengeResponses={
+                'NEW_PASSWORD': new_password,
+                'USERNAME': username,
+            }
+        )
+        return {"message": "Password updated successfully."}
+    except ClientError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # Token validation route
 @auth_router.get("/auth/validate")
 async def validate_token(token: str = Depends(oauth2_scheme)):
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        
-        # Validate the 'sub' claim (user identity)
-        username: str = payload.get("sub")
-        if not username:
-            raise HTTPException(status_code=401, detail="Token does not contain a valid subject (sub)")
-
-        exp = payload.get("exp")
-        if not exp or datetime.fromtimestamp(exp, timezone.utc) < datetime.now(timezone.utc):
-            raise HTTPException(status_code=401, detail="Token has expired")
-
+        response = cognito_client.get_user(
+            AccessToken=token
+        )
+        username = response['Username']
         return {"authenticated": True, "user": username}
 
-    
-    except Exception as e:
-        print(f"Error: {e}")
-        raise HTTPException(status_code=401, detail="Token validation failed")
+    except ClientError as e:
+        raise HTTPException(status_code=401, detail="Token validation failed: " + str(e))
