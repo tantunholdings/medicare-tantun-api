@@ -1,0 +1,63 @@
+{
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:521896913840:task-definition/medicare:3",
+    "containerDefinitions": [
+        {
+            "name": "medicare-api",
+            "image": "521896913840.dkr.ecr.us-east-1.amazonaws.com/medicare/backend:824857ac0f4fa6ac02eb7f3c8669be356d9be6b9",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "name": "medicare-api-80-tcp",
+                    "containerPort": 80,
+                    "hostPort": 80,
+                    "protocol": "tcp",
+                    "appProtocol": "http"
+                }
+            ],
+            "essential": true,
+            "environment": [
+
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "systemControls": []
+        }
+    ],
+    "family": "medicare",
+    "executionRoleArn": "arn:aws:iam::521896913840:role/ecsTaskExecutionRole",
+    "networkMode": "awsvpc",
+    "revision": 3,
+    "volumes": [],
+    "status": "ACTIVE",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "ecs.capability.task-eni"
+        }
+    ],
+    "placementConstraints": [],
+    "compatibilities": [
+        "EC2",
+        "FARGATE"
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "1024",
+    "memory": "3072",
+    "runtimePlatform": {
+        "cpuArchitecture": "X86_64",
+        "operatingSystemFamily": "LINUX"
+    },
+    "registeredAt": "2024-10-03T20:40:36.245Z",
+    "registeredBy": "arn:aws:sts::521896913840:assumed-role/AWSReservedSSO_medicare-s3_65b56463e802a56c/sahiruwrcg",
+    "tags": []
+}

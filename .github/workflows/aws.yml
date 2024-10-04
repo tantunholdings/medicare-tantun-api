@@ -36,7 +36,7 @@ env:
   ECR_REPOSITORY: "medicare/backend"           # set this to your Amazon ECR repository name
   ECS_SERVICE: "medicare2"                 # set this to your Amazon ECS service name
   ECS_CLUSTER: "medicare-backend"                 # set this to your Amazon ECS cluster name
-  ECS_TASK_DEFINITION: "medicare" # set this to the path to your Amazon ECS task definition
+  ECS_TASK_DEFINITION: "./task-definition.json" # set this to the path to your Amazon ECS task definition
                                                # file, e.g. .aws/task-definition.json
   CONTAINER_NAME: "medicare-api"           # set this to the name of the container in the
                                                # containerDefinitions section of your task definition
@@ -85,6 +85,10 @@ jobs:
         task-definition: ${{ env.ECS_TASK_DEFINITION }}
         container-name: ${{ env.CONTAINER_NAME }}
         image: ${{ steps.build-image.outputs.image }}
+        environment-variables: |
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
 
     - name: Deploy Amazon ECS task definition
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
