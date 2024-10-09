@@ -5,7 +5,7 @@ from fastapi import APIRouter, Form, File, UploadFile, HTTPException, Query, Dep
 from typing import Optional
 from io import BytesIO
 from math import ceil
-
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from app.auth import validate_token
 
@@ -28,14 +28,17 @@ async def create_post(
     tags: str = Form(...),
     content: str = Form(...),
     draft: bool = Form(...),
+    prev_image_url: Optional[str] = Form(None),
     image: Optional[UploadFile] = File(None),
 ):
     try:
-        image_url = None
+        image_url = prev_image_url
         if image:
             print(f"Uploading image: {image.filename}")
+            
             image_bytes = await image.read()
-            s3_image_key = f"blog-images/{image.filename}"
+            random_filename = str(uuid.uuid4())
+            s3_image_key = f"blog-images/{random_filename}"
             
             s3.upload_fileobj(
                 BytesIO(image_bytes),
@@ -44,7 +47,8 @@ async def create_post(
             )
             
             image_url = f"https://{S3_BUCKET_NAME}.s3.{S3_REGION}.amazonaws.com/{s3_image_key}"
-
+            print(f"Image uploaded successfully: {image_url}")
+        
         blog_data = {
             "id": id,
             "title": title,
