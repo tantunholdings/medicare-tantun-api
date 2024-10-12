@@ -8,15 +8,9 @@ from math import ceil
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from app.auth import validate_token
+from app.utilities_S3 import download_object, get_s3_client, S3_BUCKET_NAME, S3_REGION
 
-
-S3_BUCKET_NAME = "medicare-blogs"
-S3_REGION = "us-east-1"
-s3 = boto3.client(
-    "s3",
-    region_name=S3_REGION,
-)
-
+s3 = get_s3_client()
 blog_router = APIRouter()
 
 @blog_router.post("/add-blog", dependencies=[Depends(validate_token)])
@@ -113,11 +107,7 @@ async def list_posts(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1
 
         posts = []
 
-        def download_object(file_key):
-            # Download and process each blog post
-            s3_object = s3.get_object(Bucket=S3_BUCKET_NAME, Key=file_key)
-            post_data = json.loads(s3_object['Body'].read().decode('utf-8'))
-            return post_data
+        
 
         # Use ThreadPoolExecutor to download posts concurrently
         with ThreadPoolExecutor() as executor:
@@ -154,9 +144,7 @@ async def get_blog(blog_id: str):
         # Construct the S3 key using the Blog ID
         s3_json_key = f"blogs/{blog_id}.json"
 
-        # Fetch the object from S3
-        s3_object = s3.get_object(Bucket=S3_BUCKET_NAME, Key=s3_json_key)
-        blog_data = json.loads(s3_object['Body'].read().decode('utf-8'))
+        blog_data = download_object(s3_json_key)
 
         return {"message": "Blog retrieved successfully", "blog": blog_data}
 
