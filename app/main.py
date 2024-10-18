@@ -6,6 +6,7 @@ from app.auth import auth_router
 from app.blog import blog_router
 from app.faq import faq_router
 from app.gpt import gpt_router
+from app.email import contact_router
 
 app = FastAPI()
 
@@ -23,3 +24,4 @@ app.include_router(auth_router)
 app.include_router(blog_router)
 app.include_router(faq_router)
 app.include_router(gpt_router)
+app.include_router(contact_router)

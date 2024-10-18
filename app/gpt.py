@@ -2,13 +2,12 @@ import os
 import json
 import boto3
 from botocore.exceptions import NoCredentialsError
-from fastapi import FastAPI, APIRouter, HTTPException, File, UploadFile, Form
+from fastapi import  APIRouter, HTTPException, File, UploadFile, Form
 from fastapi.responses import JSONResponse
 from typing import List, Optional
 import asyncio
 from openai import OpenAI
 
-app = FastAPI()
 
 gpt_router = APIRouter()
 
@@ -120,14 +119,3 @@ async def ask_question(
         raise HTTPException(status_code=500, detail="Request was cancelled.")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
-
-
-@app.on_event("startup")
-async def startup_event():
-    print("Starting up...")
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    print("Shutting down...")
-
-app.include_router(gpt_router)
