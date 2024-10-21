@@ -63,6 +63,8 @@ async def create_post(
             Body=json_data,
             ContentType='application/json'
         )
+        
+        download_object(s3_json_key, True)
 
         return {"message": "Post created successfully", "post": blog_data}
 
