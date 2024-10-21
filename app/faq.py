@@ -38,7 +38,7 @@ async def create_faq(
             Body=json_data,
             ContentType='application/json'
         )
-
+        download_object(s3_json_key, True)	
         return {"message": "FAQ created successfully", "faq": faq_data}
 
     except Exception as e:

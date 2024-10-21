@@ -15,13 +15,14 @@ s3 = boto3.client(
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)  # Adjust host/port/db as needed
 
 # Utility function to download an object from S3 or Redis
-def download_object(file_key: str, s3_bucket_name: str = S3_BUCKET_NAME) -> dict:
+def download_object(file_key: str, skip_cache : bool = False, s3_bucket_name: str = S3_BUCKET_NAME) -> dict:
     try:
-        # Check if the object is cached in Redis
-        cached_faq = redis_client.get(file_key)
-        if cached_faq:
-            print(f"Fetching FAQ {file_key} from Redis cache.")
-            return json.loads(cached_faq)
+        if not skip_cache:
+            # Check if the object is cached in Redis
+            cached_data = redis_client.get(file_key)
+            if cached_data:
+                print(f"FAQ {file_key} found in Redis cache.")
+                return json.loads(cached_data)
 
         # If not cached, fetch it from S3
         print(f"FAQ {file_key} not found in Redis. Fetching from S3.")
