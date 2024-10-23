@@ -38,22 +38,25 @@ async def ask_question(
     previous_messages: Optional[str] = Form(None),
     files: Optional[List[UploadFile]] = File(None)
 ):
-    content = [{"type": "text"}]
+    message_history = [{"role": "system", "content": SYSTEM_ROLE}]
     
     previous_message = ""
     if previous_messages:
         try:
             previous_messages = json.loads(previous_messages)
             for message in previous_messages:
-                content.append({"type": "text", "text": message['text']})
+                if message['isFromBackend']:
+                    message_history.append({"role": "assistant", "content": message['text']})
+                else:
+                    message_history.append({"role": "user", "content": message['text']})
                 
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid format for previous messages.")
         
-    content.append({"type": "text", "text": question})  
     # Process the file if it's uploaded
 
     if files and len(files) > 0:
+        content = [{'type': 'text', 'text': question}]
         for file in files:
             s3_url = None
             try:
@@ -83,18 +86,23 @@ async def ask_question(
                             "image_url": {
                                 "url":s3_url }
                         })
+                
+        message_history.append({"role": "user", "content": content})
       
-    print(content)
+    else:
+        message_history.append({"role": "user", "content": question})    
+    
+    print(message_history)
     try:
         # Send the request to OpenAI API
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role":"system","content":SYSTEM_ROLE}, {"role": "user", "content": content}],
+            messages=message_history,
         )
         
         response_text = response.choices[0].message.content
         
-        print(response_text)
+        # print(response_text)
 
         # Check if the response indicates an invalid question
         if "Invalid question" in response_text:
