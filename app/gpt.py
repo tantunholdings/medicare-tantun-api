@@ -11,12 +11,9 @@ from openai import OpenAI
 
 gpt_router = APIRouter()
 
-# Define a fixed prompt for validating questions
-VALIDATION_PROMPT = """
-This is a medical insurance blog application. Ensure that the following question and additional file content (if applicable) are relevant to medical insurance topics, such as health coverage, claims, policies, or any other health services related to insurance. If the question is not relevant, respond with an error message saying "Invalid question. Please ask a question related to medical insurance. Also answer greetings such as Hello with a polite message.".
-"""
+# Define a system role for the OpenAI API to answer user prompts
 
-VALIDATION_PROMPT = ""
+SYSTEM_ROLE  ="You are a medicare insurance consultant.  Ask questions one at a time. You should ask no more than 3 questions and announce that process to the client. The questions should help narrow down the choices and plans. The most important parameters are network of doctors and prescriptions. Suggest only low costs plans and don’t ask about budget preferences . In your final recommendations write at least 3 providers add our phone number: 910345678 to consult our tantun brokers for more detailed information."
 
 # Load your OpenAI API key from environment variables
 client = OpenAI(
@@ -40,7 +37,7 @@ async def ask_question(
     previous_messages: Optional[str] = Form(None),
     files: Optional[List[UploadFile]] = File(None)
 ):
-    content = [{"type": "text", "text": VALIDATION_PROMPT}]
+    content = [{"type": "text"}]
     
     previous_message = ""
     if previous_messages:
@@ -91,7 +88,7 @@ async def ask_question(
         # Send the request to OpenAI API
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": content}],
+            messages=[{"role":"system","content":SYSTEM_ROLE}, {"role": "user", "content": content}],
         )
         
         response_text = response.choices[0].message.content
