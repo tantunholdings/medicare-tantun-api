@@ -17,8 +17,8 @@ SYSTEM_ROLE  ="You are a medicare insurance consultant.  Ask questions one at a 
 
 # Load your OpenAI API key from environment variables
 client = OpenAI(
-    #api_key=os.environ.get("OPENAI_API_KEY"),
-    api_key="sk-svcacct-QroTrQ3zY9mDlRftIyGyd7ySWx2l0Bws7crHRNKy0WTccHrxAvdYI_EjT4Cq0NNWqdtT3BlbkFJXosdeNAtuQ8BpsA47JyN-tSB1K3V8zboUQENac8h81IAI-2yY7oMom9Cc66ZEE3UtAA",
+    api_key=os.environ.get("OPENAI_API_KEY"),
+    
 )
 
 # S3 configuration
