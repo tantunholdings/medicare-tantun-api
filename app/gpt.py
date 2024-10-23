@@ -17,7 +17,8 @@ SYSTEM_ROLE  ="You are a medicare insurance consultant.  Ask questions one at a 
 
 # Load your OpenAI API key from environment variables
 client = OpenAI(
-    api_key=os.environ.get("OPENAI_API_KEY"),
+    #api_key=os.environ.get("OPENAI_API_KEY"),
+    api_key="sk-svcacct-QroTrQ3zY9mDlRftIyGyd7ySWx2l0Bws7crHRNKy0WTccHrxAvdYI_EjT4Cq0NNWqdtT3BlbkFJXosdeNAtuQ8BpsA47JyN-tSB1K3V8zboUQENac8h81IAI-2yY7oMom9Cc66ZEE3UtAA",
 )
 
 # S3 configuration
@@ -37,21 +38,26 @@ async def ask_question(
     previous_messages: Optional[str] = Form(None),
     files: Optional[List[UploadFile]] = File(None)
 ):
-    content = [{"type": "text"}]
     
-    previous_message = ""
+    
+    messages = [{"role": "system", "content": SYSTEM_ROLE}]
+
+    # Add previous messages to the API call if they exist
     if previous_messages:
         try:
             previous_messages = json.loads(previous_messages)
             for message in previous_messages:
-                content.append({"type": "text", "text": message['text']})
+                # Assuming each 'message' contains 'role' and 'text'
+                messages.append({"role": message['role'], "content": message['text']})
                 
         except json.JSONDecodeError:
             raise HTTPException(status_code=400, detail="Invalid format for previous messages.")
         
-    content.append({"type": "text", "text": question})  
-    # Process the file if it's uploaded
-
+    messages.append({"role": "user", "content": question})  
+    
+    
+    # Process the uploaded files if it's uploaded (images only)
+    
     if files and len(files) > 0:
         for file in files:
             s3_url = None
@@ -67,7 +73,20 @@ async def ask_question(
                         Params={'Bucket': S3_BUCKET_NAME, 'Key': s3_file_key},
                         ExpiresIn=3600  # URL valid for 1 hour
                     )
+                    
                     print(f"Image uploaded successfully: {s3_url}")
+                     
+                    # Append the image URL to content
+                    messages.append({
+                        "role":"user",
+                        "content":{
+                            "type": "image_url",
+                            "image_url": s3_url
+                        }
+                        
+                    })
+
+
                 else:
                     raise HTTPException(status_code=400, detail="Only image files are allowed.")
             except NoCredentialsError:
@@ -75,20 +94,15 @@ async def ask_question(
             except Exception as e:
                 print(f"Error uploading to S3: {str(e)}")
                 raise HTTPException(status_code=500, detail=f"Error uploading to S3: {str(e)}")
-            
-            if s3_url:
-                content.append({
-                            "type": "image_url",
-                            "image_url": {
-                                "url":s3_url }
-                        })
-      
-    print(content)
+     
+    
+  
+    print(messages)
     try:
         # Send the request to OpenAI API
         response = client.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role":"system","content":SYSTEM_ROLE}, {"role": "user", "content": content}],
+            messages=messages,
         )
         
         response_text = response.choices[0].message.content
@@ -108,7 +122,7 @@ async def ask_question(
             "message": "Your question has been processed successfully.",
             "question": question,
             "response_from_openai": response_text,
-            "previous_messages": previous_message,
+            "previous_messages": previous_messages,
             "is_valid": True
         })
 
