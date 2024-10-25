@@ -99,7 +99,7 @@ async def ask_question(
             model="gpt-4o-mini",
             messages=message_history,
         )
-        print(f"message_history: {message_history}")
+        
         response_text = response.choices[0].message.content
         
         # print(response_text)
