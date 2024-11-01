@@ -73,9 +73,13 @@ async def create_post(
 
 
 
-
 @blog_router.get("/blogs")
-async def list_posts(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1, le=50), includeDrafts: bool = Query(False)):
+async def list_posts(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(10, ge=1, le=50),
+    tag: str = Query("All"),
+    includeDrafts: bool = Query(False)
+):
     print("Listing posts")
     try:
         # Use paginator for listing objects in chunks
@@ -92,8 +96,29 @@ async def list_posts(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1
         if not blog_files:
             return {"message": "No posts found", "total_posts": 0, "total_pages": 0, "posts": []}
 
-        # Calculate total posts and total pages
-        total_posts = len(blog_files)
+        # Use ThreadPoolExecutor to download posts concurrently
+        with ThreadPoolExecutor() as executor:
+            results = list(executor.map(download_object, [file['Key'] for file in blog_files]))
+
+        # Filter by drafts
+        filtered_posts = [
+            post_data for post_data in results
+            if includeDrafts or not post_data.get('draft', False)
+        ]
+
+        # Handle the "Latest" tag by sorting posts by date (assuming each post has a 'date' field)
+        if tag == "Latest":
+            filtered_posts.sort(key=lambda x: x.get('date', ''), reverse=True)
+        else:
+            # Filter by the specified tag if it's not "All"
+            if tag != "All":
+                filtered_posts = [
+                    post_data for post_data in filtered_posts
+                    if tag in post_data.get('tags', [])
+                ]
+
+        # Calculate total posts after filtering
+        total_posts = len(filtered_posts)
         total_pages = ceil(total_posts / page_size)
 
         # Handle out of range pages
@@ -104,39 +129,25 @@ async def list_posts(page: int = Query(1, ge=1), page_size: int = Query(10, ge=1
         start_index = (page - 1) * page_size
         end_index = min(start_index + page_size, total_posts)
 
-        # Select the blog files that correspond to the requested page
-        blog_files_for_page = blog_files[start_index:end_index]
+        # Select the posts for the current page
+        posts_for_page = filtered_posts[start_index:end_index]
 
-        posts = []
-
-        
-
-        # Use ThreadPoolExecutor to download posts concurrently
-        with ThreadPoolExecutor() as executor:
-            results = list(executor.map(download_object, [file['Key'] for file in blog_files_for_page]))
-
-        # Apply draft filter based on the includeDrafts parameter
-        for post_data in results:
-            if not includeDrafts and post_data.get('draft', False):
-                continue
-            posts.append(post_data)
-
-        # Calculate the actual number of posts after filtering (if applicable)
-        total_posts_after_filter = len(posts)
-        
         print("Posts retrieved successfully")
 
         return {
             "message": "Posts retrieved successfully",
-            "total_posts": total_posts_after_filter,
+            "total_posts": total_posts,
             "total_pages": total_pages,
             "current_page": page,
             "page_size": page_size,
-            "posts": posts,
+            "posts": posts_for_page,
         }
 
     except Exception as e:
+        print(f"Failed to retrieve posts: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve posts: {str(e)}")
+
+
 
 
 # Endpoint to get Blog details by ID
